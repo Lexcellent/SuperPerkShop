@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using Duckov.Economy;
@@ -125,7 +126,8 @@ namespace SuperPerkShop
 
         bool ItemIdIsVaild(int itemId)
         {
-            return _vaildItemIds.Contains(itemId);
+            // return _vaildItemIds.Contains(itemId);
+            return itemId >= 0;
         }
 
         // 处理无效配方
@@ -143,7 +145,9 @@ namespace SuperPerkShop
                 // 获取字段值
                 var unlockedFormulas = unlockedFormulaIDsField.GetValue(CraftingManager.Instance) as List<string>;
 
-                if (unlockedFormulas != null)
+                // 如果用户加载慢 配方总合集可能是空的 不做处理
+                if (unlockedFormulas != null && unlockedFormulas.Count > 0 &&
+                    CraftingFormulaCollection.Instance.Entries.Count > 0)
                 {
                     // 使用 unlockedFormulas 列表
                     Debug.Log($"已解锁配方数量: {unlockedFormulas.Count}");
@@ -153,10 +157,10 @@ namespace SuperPerkShop
                     {
                         // 已解锁配方是否找到了对应的定义
                         var found = false;
+
+
                         foreach (var craftingFormula in CraftingFormulaCollection.Instance.Entries)
                         {
-                            
-
                             // Debug.Log($"配方ID:{craftingFormula.id},原材料种类数:{craftingFormula.cost.items.Length}");
                             if (craftingFormula.IDValid && craftingFormula.id == unlockedFormula)
                             {
@@ -183,6 +187,7 @@ namespace SuperPerkShop
                                 {
                                     found = true;
                                 }
+
                                 break;
                             }
                         }
@@ -225,7 +230,7 @@ namespace SuperPerkShop
                             Debug.LogWarning("未找到调用配方管理器 Save 方法");
                         }
 
-                        NotificationText.Push($"有{invalid}个配方无效，已删除");
+                        NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
                     }
                     else
                     {
@@ -245,77 +250,86 @@ namespace SuperPerkShop
 
             if (context.sceneName == "Base")
             {
-                var find = GameObject.Find("Buildings/SaleMachine");
-                if (find != null)
+                // 启动协程延迟执行
+                StartCoroutine(DelayedSetup());
+            }
+        }
+
+        IEnumerator DelayedSetup()
+        {
+            // 延迟1秒
+            yield return new WaitForSeconds(1f);
+
+            var find = GameObject.Find("Buildings/SaleMachine");
+            if (find != null)
+            {
+                Debug.Log("找到了 SaleMachine 开始克隆");
+                var superSaleMachine = Instantiate(find.gameObject);
+                superSaleMachine.transform.SetParent(find.transform.parent, true);
+                superSaleMachine.name = "SuperSaleMachine";
+                // 调试用 -7.4 0 -83
+                // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
+                // 正式用
+                superSaleMachine.transform.position = new Vector3(-23f, 0f, -65.5f);
+                var superPerkShop = superSaleMachine.transform.Find("PerkWeaponShop");
+                var stockShop = InitShopItems(superPerkShop);
+
+                superSaleMachine.SetActive(true);
+                Debug.Log("超级售货机已激活");
+
+                if (stockShop != null)
                 {
-                    Debug.Log("找到了 SaleMachine 开始克隆");
-                    var superSaleMachine = Instantiate(find.gameObject);
-                    superSaleMachine.transform.SetParent(find.transform.parent, true);
-                    superSaleMachine.name = "SuperSaleMachine";
-                    // 调试用 -7.4 0 -83
-                    // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
-                    // 正式用
-                    superSaleMachine.transform.position = new Vector3(-23f, 0f, -65.5f);
-                    var superPerkShop = superSaleMachine.transform.Find("PerkWeaponShop");
-                    var stockShop = InitShopItems(superPerkShop);
-
-                    superSaleMachine.SetActive(true);
-                    Debug.Log("超级售货机已激活");
-
-                    if (stockShop != null)
+                    // 使用反射调用 DoRefreshStock 方法
+                    var refreshMethod = typeof(StockShop).GetMethod("DoRefreshStock",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (refreshMethod != null)
                     {
-                        // 使用反射调用 DoRefreshStock 方法
-                        var refreshMethod = typeof(StockShop).GetMethod("DoRefreshStock",
-                            BindingFlags.NonPublic | BindingFlags.Instance);
-                        if (refreshMethod != null)
+                        try
                         {
-                            try
-                            {
-                                refreshMethod.Invoke(stockShop, null);
-                                Debug.Log($"✅ 成功调用 DoRefreshStock 方法，商店库存已刷新");
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.LogError($"❌ 调用 DoRefreshStock 方法时发生异常: {ex.Message}");
-                            }
+                            refreshMethod.Invoke(stockShop, null);
+                            Debug.Log($"✅ 成功调用 DoRefreshStock 方法，商店库存已刷新");
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            Debug.LogWarning("⚠️ 未找到 DoRefreshStock 方法");
+                            Debug.LogError($"❌ 调用 DoRefreshStock 方法时发生异常: {ex.Message}");
                         }
-
-                        // 使用反射设置 lastTimeRefreshedStock 字段
-                        var lastTimeField = typeof(StockShop).GetField("lastTimeRefreshedStock",
-                            BindingFlags.NonPublic | BindingFlags.Instance);
-                        if (lastTimeField != null)
-                        {
-                            try
-                            {
-                                lastTimeField.SetValue(stockShop, DateTime.UtcNow.ToBinary());
-                                Debug.Log($"✅ 成功更新 lastTimeRefreshedStock 时间戳");
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.LogError($"❌ 设置 lastTimeRefreshedStock 字段时发生异常: {ex.Message}");
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
-                        }
-
-                        Debug.Log("超级售货机商品已刷新");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("⚠️ 未找到 DoRefreshStock 方法");
                     }
 
-                    // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
-                    FixCrafting();
+                    // 使用反射设置 lastTimeRefreshedStock 字段
+                    var lastTimeField = typeof(StockShop).GetField("lastTimeRefreshedStock",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (lastTimeField != null)
+                    {
+                        try
+                        {
+                            lastTimeField.SetValue(stockShop, DateTime.UtcNow.ToBinary());
+                            Debug.Log($"✅ 成功更新 lastTimeRefreshedStock 时间戳");
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.LogError($"❌ 设置 lastTimeRefreshedStock 字段时发生异常: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
+                    }
 
-                    // NotificationText.Push("超级售货机已在训练场已生成");
+                    Debug.Log("超级售货机商品已刷新");
                 }
-                else
-                {
-                    Debug.LogWarning("未找到 Buildings/SaleMachine");
-                }
+
+                // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
+                FixCrafting();
+
+                // NotificationText.Push("超级售货机已在训练场已生成");
+            }
+            else
+            {
+                Debug.LogWarning("未找到 Buildings/SaleMachine");
             }
         }
     }
