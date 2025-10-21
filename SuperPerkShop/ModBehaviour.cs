@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using Duckov.Economy;
+using Duckov.UI;
 using ItemStatsSystem;
 using UnityEngine;
 
@@ -59,6 +61,7 @@ namespace SuperPerkShop
                     // 未添加则将映射添加到商店映射中
                     if (!isAdded)
                     {
+                        _vaildItemIds.Clear();
                         // 全物品列表
                         var allItemEntries = ItemAssetsCollection.Instance.entries;
                         var merchantProfile = new StockShopDatabase.MerchantProfile();
@@ -79,6 +82,7 @@ namespace SuperPerkShop
                                 entry.possibility = -1f;
                                 entry.lockInDemo = false;
                                 merchantProfile.entries.Add(entry);
+                                _vaildItemIds.Add(entry.typeID);
                             }
                         }
 
@@ -88,7 +92,7 @@ namespace SuperPerkShop
                     // 调用初始化方法
                     // 使用反射调用 InitializeEntries 方法
                     var initializeEntriesMethod = typeof(StockShop).GetMethod("InitializeEntries",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        BindingFlags.NonPublic | BindingFlags.Instance);
                     if (initializeEntriesMethod != null)
                     {
                         try
@@ -115,6 +119,124 @@ namespace SuperPerkShop
             }
 
             return null;
+        }
+
+        private List<int> _vaildItemIds = new List<int>();
+
+        bool ItemIdIsVaild(int itemId)
+        {
+            return _vaildItemIds.Contains(itemId);
+        }
+
+        // 处理无效配方
+        void FixCrafting()
+        {
+            // 获取 CraftingManager 类型
+            Type craftingManagerType = typeof(CraftingManager);
+
+            // 获取 unlockedFormulaIDs 字段（注意是 GetField 而不是 GetProperty）
+            FieldInfo? unlockedFormulaIDsField = craftingManagerType.GetField("unlockedFormulaIDs",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (unlockedFormulaIDsField != null)
+            {
+                // 获取字段值
+                var unlockedFormulas = unlockedFormulaIDsField.GetValue(CraftingManager.Instance) as List<string>;
+
+                if (unlockedFormulas != null)
+                {
+                    // 使用 unlockedFormulas 列表
+                    Debug.Log($"已解锁配方数量: {unlockedFormulas.Count}");
+                    var newUnlockedFormulas = new List<string>();
+                    var invalid = 0;
+                    foreach (var unlockedFormula in unlockedFormulas)
+                    {
+                        // 已解锁配方是否找到了对应的定义
+                        var found = false;
+                        foreach (var craftingFormula in CraftingFormulaCollection.Instance.Entries)
+                        {
+                            
+
+                            // Debug.Log($"配方ID:{craftingFormula.id},原材料种类数:{craftingFormula.cost.items.Length}");
+                            if (craftingFormula.IDValid && craftingFormula.id == unlockedFormula)
+                            {
+                                // 配方的最终产物是否有效
+                                if (!ItemIdIsVaild(craftingFormula.result.id))
+                                {
+                                    Debug.Log($"配方:{craftingFormula.id} 最终产物:{craftingFormula.result.id}无效");
+                                    break;
+                                }
+
+                                var costIsVaild = true;
+                                // 配方的原材料是否有效
+                                foreach (var itemEntry in craftingFormula.cost.items)
+                                {
+                                    if (!ItemIdIsVaild(itemEntry.id))
+                                    {
+                                        Debug.Log($"配方:{craftingFormula.id} 原材料:{craftingFormula.result.id}无效");
+                                        costIsVaild = false;
+                                        break;
+                                    }
+                                }
+
+                                if (costIsVaild)
+                                {
+                                    found = true;
+                                }
+                                break;
+                            }
+                        }
+
+                        if (found)
+                        {
+                            // Debug.Log($"配方有效:{unlockedFormula}");
+                            newUnlockedFormulas.Add(unlockedFormula);
+                        }
+                        else
+                        {
+                            Debug.Log($"无效配方:{unlockedFormula}");
+                            invalid += 1;
+                        }
+                    }
+
+                    if (invalid > 0)
+                    {
+                        // 设置新值
+                        unlockedFormulaIDsField.SetValue(CraftingManager.Instance, newUnlockedFormulas);
+                        // 调用 Save 方法
+                        MethodInfo? saveMethod = craftingManagerType.GetMethod("Save",
+                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                        if (saveMethod != null)
+                        {
+                            try
+                            {
+                                // 调用 Save 方法
+                                saveMethod.Invoke(CraftingManager.Instance, null);
+                                Debug.Log("✅ 成功调用配方管理器 Save 方法");
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.LogError($"❌ 调用调用配方管理器 Save 方法时发生异常: {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning("未找到调用配方管理器 Save 方法");
+                        }
+
+                        NotificationText.Push($"有{invalid}个配方无效，已删除");
+                    }
+                    else
+                    {
+                        Debug.Log("没有无效配方");
+                    }
+                }
+            }
+            else
+            {
+                Debug.LogWarning("未找到 unlockedFormulaIDs 属性");
+            }
         }
 
         void OnAfterSceneInit(SceneLoadingContext context)
@@ -184,6 +306,11 @@ namespace SuperPerkShop
 
                         Debug.Log("超级售货机商品已刷新");
                     }
+
+                    // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
+                    FixCrafting();
+
+                    // NotificationText.Push("超级售货机已在训练场已生成");
                 }
                 else
                 {
