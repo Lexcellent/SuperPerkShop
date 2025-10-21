@@ -69,6 +69,12 @@ namespace SuperPerkShop
                         merchantProfile.merchantID = MerchantID;
                         foreach (var itemEntry in allItemEntries)
                         {
+                            // if (!itemEntry.prefab.CanBeSold &&
+                            //     !itemEntry.prefab.name.ToLower().EndsWith("template") &&
+                            //     itemEntry.prefab.Icon != null && itemEntry.prefab.Icon.name != "cross")
+                            // {
+                            //     Debug.Log($"物品无法被出售:{itemEntry.prefab.TypeID}: {itemEntry.prefab.DisplayName}");
+                            // }
                             // 过滤无效物品
                             if (itemEntry.prefab.CanBeSold &&
                                 !itemEntry.prefab.name.ToLower().EndsWith("template") &&
@@ -244,6 +250,52 @@ namespace SuperPerkShop
             }
         }
 
+        void UpdateModel(GameObject superSaleMachine)
+        {
+            // 查找所有名为 Visual 的子对象
+            var visualChildren = new List<Transform>();
+            foreach (Transform child in superSaleMachine.transform)
+            {
+                if (child.name == "Visual")
+                {
+                    visualChildren.Add(child);
+                }
+            }
+
+            // 如果有两个 Visual 子对象
+            if (visualChildren.Count == 2)
+            {
+                Transform? activeVisual = null;
+                Transform? inactiveVisual = null;
+
+                // 分别找出已激活和未激活的 Visual
+                foreach (var visual in visualChildren)
+                {
+                    if (visual.gameObject.activeSelf)
+                    {
+                        activeVisual = visual;
+                    }
+                    else
+                    {
+                        inactiveVisual = visual;
+                    }
+                }
+
+                // 如果找到了已激活和未激活的 Visual，则进行切换
+                if (activeVisual != null && inactiveVisual != null)
+                {
+                    activeVisual.gameObject.SetActive(false);
+                    inactiveVisual.gameObject.SetActive(true);
+                    Debug.Log("✅ 成功切换 Visual 模型");
+                }
+            }
+            // 如果只有一个或没有 Visual 子对象，则不处理
+            else if (visualChildren.Count <= 1)
+            {
+                Debug.Log("Visual 子对象数量不足，无需处理");
+            }
+        }
+
         void OnAfterSceneInit(SceneLoadingContext context)
         {
             Debug.Log($"场景加载完成: {context.sceneName}");
@@ -276,6 +328,15 @@ namespace SuperPerkShop
 
                 superSaleMachine.SetActive(true);
                 Debug.Log("超级售货机已激活");
+                try
+                {
+                    // 修改模型，使用另一个版本，如果有的话
+                    UpdateModel(superSaleMachine);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"❌ 修改模型时发生异常: {ex.Message}");
+                }
 
                 if (stockShop != null)
                 {
@@ -322,8 +383,15 @@ namespace SuperPerkShop
                     Debug.Log("超级售货机商品已刷新");
                 }
 
-                // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
-                FixCrafting();
+                try
+                {
+                    // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
+                    FixCrafting();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"❌ 修复配方时发生异常: {ex.Message}");
+                }
 
                 // NotificationText.Push("超级售货机已在训练场已生成");
             }
