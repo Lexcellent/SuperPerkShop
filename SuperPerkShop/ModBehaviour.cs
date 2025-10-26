@@ -6,6 +6,7 @@ using Duckov.Economy;
 using Duckov.UI;
 using ItemStatsSystem;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SuperPerkShop
 {
@@ -15,13 +16,24 @@ namespace SuperPerkShop
 
         protected override void OnAfterSetup()
         {
-            SceneLoader.onAfterSceneInitialize -= OnAfterSceneInit;
-            SceneLoader.onAfterSceneInitialize += OnAfterSceneInit;
+            SceneManager.sceneLoaded -= OnAfterSceneInit;
+            SceneManager.sceneLoaded += OnAfterSceneInit;
         }
 
         protected override void OnBeforeDeactivate()
         {
-            SceneLoader.onAfterSceneInitialize -= OnAfterSceneInit;
+            SceneManager.sceneLoaded -= OnAfterSceneInit;
+        }
+
+        void OnAfterSceneInit(Scene scene, LoadSceneMode mode)
+        {
+            Debug.Log($"加载场景：{scene.name}，模式：{mode.ToString()}");
+
+            if (scene.name == "Base_SceneV2")
+            {
+                // 启动协程延迟执行
+                StartCoroutine(DelayedSetup());
+            }
         }
 
         StockShop? InitShopItems(Transform? superPerkShop)
@@ -105,7 +117,7 @@ namespace SuperPerkShop
                         try
                         {
                             initializeEntriesMethod.Invoke(stockShop, null);
-                            Debug.Log($"✅ 成功调用 InitializeEntries 方法，商店库存已刷新");
+                            // Debug.Log($"✅ 成功调用 InitializeEntries 方法，商店库存已刷新");
                         }
                         catch (Exception ex)
                         {
@@ -224,7 +236,7 @@ namespace SuperPerkShop
                             {
                                 // 调用 Save 方法
                                 saveMethod.Invoke(CraftingManager.Instance, null);
-                                Debug.Log("✅ 成功调用配方管理器 Save 方法");
+                                // Debug.Log("✅ 成功调用配方管理器 Save 方法");
                             }
                             catch (Exception ex)
                             {
@@ -286,24 +298,13 @@ namespace SuperPerkShop
                 {
                     activeVisual.gameObject.SetActive(false);
                     inactiveVisual.gameObject.SetActive(true);
-                    Debug.Log("✅ 成功切换 Visual 模型");
+                    // Debug.Log("✅ 成功切换 Visual 模型");
                 }
             }
             // 如果只有一个或没有 Visual 子对象，则不处理
             else if (visualChildren.Count <= 1)
             {
                 Debug.Log("Visual 子对象数量不足，无需处理");
-            }
-        }
-
-        void OnAfterSceneInit(SceneLoadingContext context)
-        {
-            Debug.Log($"场景加载完成: {context.sceneName}");
-
-            if (context.sceneName == "Base")
-            {
-                // 启动协程延迟执行
-                StartCoroutine(DelayedSetup());
             }
         }
 
@@ -315,7 +316,7 @@ namespace SuperPerkShop
             var find = GameObject.Find("Buildings/SaleMachine");
             if (find != null)
             {
-                Debug.Log("找到了 SaleMachine 开始克隆");
+                // Debug.Log("找到了 SaleMachine 开始克隆");
                 var superSaleMachine = Instantiate(find.gameObject);
                 superSaleMachine.transform.SetParent(find.transform.parent, true);
                 superSaleMachine.name = "SuperSaleMachine";
@@ -348,7 +349,7 @@ namespace SuperPerkShop
                         try
                         {
                             refreshMethod.Invoke(stockShop, null);
-                            Debug.Log($"✅ 成功调用 DoRefreshStock 方法，商店库存已刷新");
+                            // Debug.Log($"✅ 成功调用 DoRefreshStock 方法，商店库存已刷新");
                         }
                         catch (Exception ex)
                         {
@@ -368,7 +369,7 @@ namespace SuperPerkShop
                         try
                         {
                             lastTimeField.SetValue(stockShop, DateTime.UtcNow.ToBinary());
-                            Debug.Log($"✅ 成功更新 lastTimeRefreshedStock 时间戳");
+                            // Debug.Log($"✅ 成功更新 lastTimeRefreshedStock 时间戳");
                         }
                         catch (Exception ex)
                         {
@@ -380,7 +381,7 @@ namespace SuperPerkShop
                         Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
                     }
 
-                    Debug.Log("超级售货机商品已刷新");
+                    // Debug.Log("超级售货机商品已刷新");
                 }
 
                 try
