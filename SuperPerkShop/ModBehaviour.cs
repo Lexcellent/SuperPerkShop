@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Duckov.Economy;
 using Duckov.UI;
+using HarmonyLib;
 using ItemStatsSystem;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,16 +13,28 @@ namespace SuperPerkShop
 {
     public class ModBehaviour : Duckov.Modding.ModBehaviour
     {
+        private Harmony? _harmony = null;
         private const string MerchantID = "Super_Merchant_Normal";
 
         protected override void OnAfterSetup()
         {
+            if (_harmony != null)
+            {
+                _harmony.UnpatchAll();
+            }
+            _harmony = new Harmony("Lexcellent.SuperPerkShop");
+            _harmony.PatchAll(Assembly.GetExecutingAssembly());
+            
             SceneManager.sceneLoaded -= OnAfterSceneInit;
             SceneManager.sceneLoaded += OnAfterSceneInit;
         }
 
         protected override void OnBeforeDeactivate()
         {
+            if (_harmony != null)
+            {
+                _harmony.UnpatchAll();
+            }
             SceneManager.sceneLoaded -= OnAfterSceneInit;
         }
 
