@@ -274,6 +274,26 @@ namespace SuperPerkShop
                         {
                             NotificationText.Push($"{invalid}개의 청사진/레시피가 유효하지 않아 삭제되었습니다");
                         }
+                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Japanese)
+                        {
+                            NotificationText.Push($"{invalid}個のブループリント/レシピが無効なので削除されました");
+                        }
+                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Spanish)
+                        {
+                            NotificationText.Push($"{invalid} planos/recetas no válidos han sido eliminados");
+                        }
+                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.French)
+                        {
+                            NotificationText.Push($"{invalid} plans/recettes invalides ont été supprimés");
+                        }
+                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.German)
+                        {
+                            NotificationText.Push($"{invalid} ungültige Baupläne/Rezepte wurden gelöscht");
+                        }
+                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Russian)
+                        {
+                            NotificationText.Push($"{invalid} недействительных чертежей/рецептов были удалены");
+                        }
                         else
                         {
                             NotificationText.Push($"{invalid} invalid blueprints/recipes have been deleted");

@@ -103,10 +103,31 @@ namespace SuperPerkShop
                 {
                     placeholderText.text = "상품 검색...";
                 }
+                else if (LocalizationManager.CurrentLanguage == SystemLanguage.Japanese)
+                {
+                    placeholderText.text = "商品検索...";
+                }
+                else if (LocalizationManager.CurrentLanguage == SystemLanguage.Spanish)
+                {
+                    placeholderText.text = "Buscar artículo...";
+                }
+                else if (LocalizationManager.CurrentLanguage == SystemLanguage.French)
+                {
+                    placeholderText.text = "Rechercher un article...";
+                }
+                else if (LocalizationManager.CurrentLanguage == SystemLanguage.German)
+                {
+                    placeholderText.text = "Artikel suchen...";
+                }
+                else if (LocalizationManager.CurrentLanguage == SystemLanguage.Russian)
+                {
+                    placeholderText.text = "Поиск товара...";
+                }
                 else
                 {
                     placeholderText.text = "Search Item ...";
                 }
+
 
                 placeholderText.alignment = TextAlignmentOptions.Left;
                 placeholderText.fontStyle = FontStyles.Italic;
