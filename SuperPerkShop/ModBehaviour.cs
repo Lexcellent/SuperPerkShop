@@ -14,7 +14,8 @@ namespace SuperPerkShop
     public class ModBehaviour : Duckov.Modding.ModBehaviour
     {
         private Harmony? _harmony = null;
-        private const string MerchantID = "Super_Merchant_Normal";
+        public const string MerchantID = "Super_Merchant_Normal";
+        private const string ShopGameObjectName = "SuperSaleMachine";
 
         protected override void OnAfterSetup()
         {
@@ -332,7 +333,7 @@ namespace SuperPerkShop
                 // Debug.Log("找到了 SaleMachine 开始克隆");
                 var superSaleMachine = Instantiate(find.gameObject);
                 superSaleMachine.transform.SetParent(find.transform.parent, true);
-                superSaleMachine.name = "SuperSaleMachine";
+                superSaleMachine.name = ShopGameObjectName;
                 // 调试用 -7.4 0 -83
                 // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
                 // 正式用
