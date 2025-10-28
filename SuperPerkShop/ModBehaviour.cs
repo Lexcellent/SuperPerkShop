@@ -6,6 +6,7 @@ using Duckov.Economy;
 using Duckov.UI;
 using HarmonyLib;
 using ItemStatsSystem;
+using SodaCraft.Localizations;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -23,9 +24,10 @@ namespace SuperPerkShop
             {
                 _harmony.UnpatchAll();
             }
+
             _harmony = new Harmony("Lexcellent.SuperPerkShop");
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
-            
+
             SceneManager.sceneLoaded -= OnAfterSceneInit;
             SceneManager.sceneLoaded += OnAfterSceneInit;
         }
@@ -36,6 +38,7 @@ namespace SuperPerkShop
             {
                 _harmony.UnpatchAll();
             }
+
             SceneManager.sceneLoaded -= OnAfterSceneInit;
         }
 
@@ -262,7 +265,15 @@ namespace SuperPerkShop
                             Debug.LogWarning("未找到调用配方管理器 Save 方法");
                         }
 
-                        NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
+                        if (LocalizationManager.CurrentLanguage == SystemLanguage.ChineseSimplified ||
+                            LocalizationManager.CurrentLanguage == SystemLanguage.ChineseTraditional)
+                        {
+                            NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
+                        }
+                        else
+                        {
+                            NotificationText.Push($"{invalid} invalid blueprints/recipes have been deleted");
+                        }
                     }
                     else
                     {
@@ -401,7 +412,7 @@ namespace SuperPerkShop
                 try
                 {
                     // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
-                    FixCrafting();
+                    // FixCrafting();
                 }
                 catch (Exception ex)
                 {

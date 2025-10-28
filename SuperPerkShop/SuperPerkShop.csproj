@@ -12,6 +12,7 @@
         <Reference Include="$(DuckovPath)\Duckov_Data\Managed\Unity*"/>
         <Reference Include="$(DuckovPath)\Duckov_Data\Managed\UniTask*.dll"/>
         <Reference Include="$(DuckovPath)\Duckov_Data\Managed\LeTai.TranslucentImage.dll"/>
+        <Reference Include="$(DuckovPath)\Duckov_Data\Managed\SodaLocalization.dll"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Lib.Harmony" Version="2.4.1" />

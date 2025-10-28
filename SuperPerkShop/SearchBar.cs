@@ -1,6 +1,7 @@
 ﻿using System;
 using Duckov.Economy.UI;
 using HarmonyLib;
+using SodaCraft.Localizations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -93,7 +94,16 @@ namespace SuperPerkShop
                 GameObject placeholderObject = new GameObject("Placeholder");
                 placeholderObject.transform.SetParent(textArea.transform, false);
                 var placeholderText = placeholderObject.AddComponent<TextMeshProUGUI>();
-                placeholderText.text = "搜索商品...";
+                if (LocalizationManager.CurrentLanguage == SystemLanguage.ChineseSimplified ||
+                    LocalizationManager.CurrentLanguage == SystemLanguage.ChineseTraditional)
+                {
+                    placeholderText.text = "搜索商品...";
+                }
+                else
+                {
+                    placeholderText.text = "Search Item ...";
+                }
+
                 placeholderText.alignment = TextAlignmentOptions.Left;
                 placeholderText.fontStyle = FontStyles.Italic;
                 placeholderText.color = new Color(1, 1, 1, 0.5f);
@@ -123,7 +133,7 @@ namespace SuperPerkShop
                 inputField.onDeselect.AddListener((inputText) =>
                 {
                     inputText = inputText.Trim();
-                    Debug.Log($"[SuperPerkShop] 检测到搜索值：{inputText}");
+                    // Debug.Log($"[SuperPerkShop] 检测到搜索值：{inputText}");
                     var entityList = merchantStuff.Find("Scroll View/Viewport/Content");
                     if (entityList != null)
                     {
