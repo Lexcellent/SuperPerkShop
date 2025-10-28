@@ -270,6 +270,10 @@ namespace SuperPerkShop
                         {
                             NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
                         }
+                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Korean)
+                        {
+                            NotificationText.Push($"{invalid}개의 청사진/레시피가 유효하지 않아 삭제되었습니다");
+                        }
                         else
                         {
                             NotificationText.Push($"{invalid} invalid blueprints/recipes have been deleted");

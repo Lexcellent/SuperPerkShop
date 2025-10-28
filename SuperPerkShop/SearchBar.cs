@@ -99,6 +99,10 @@ namespace SuperPerkShop
                 {
                     placeholderText.text = "搜索商品...";
                 }
+                else if (LocalizationManager.CurrentLanguage == SystemLanguage.Korean)
+                {
+                    placeholderText.text = "상품 검색...";
+                }
                 else
                 {
                     placeholderText.text = "Search Item ...";
