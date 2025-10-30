@@ -95,11 +95,7 @@ namespace SuperPerkShop
                 UpdateModel(superSaleMachine);
 
                 // 刷新商店物品
-                if (stockShop != null)
-                {
-                    RefreshShop(stockShop);
-                    // Debug.Log("超级售货机商品已刷新");
-                }
+                RefreshShop(stockShop);
             }
             else
             {
@@ -254,8 +250,13 @@ namespace SuperPerkShop
             return null;
         }
         // 刷新商店
-        void RefreshShop(StockShop stockShop)
+        void RefreshShop(StockShop? stockShop)
         {
+            if (stockShop == null)
+            {
+                Debug.LogWarning("stockShop 为空");
+                return;
+            }
             // 使用反射调用 DoRefreshStock 方法
             var refreshMethod = typeof(StockShop).GetMethod("DoRefreshStock",
                 BindingFlags.NonPublic | BindingFlags.Instance);
