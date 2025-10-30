@@ -46,7 +46,7 @@ namespace SuperPerkShop
             SceneManager.sceneLoaded -= OnAfterSceneInit;
             StockShop.OnAfterItemSold -= ShopAutoSetItemCount;
         }
-
+        // 自动补货
         void ShopAutoSetItemCount(StockShop shop)
         {
             // 超级售货机 才会自动补货
@@ -176,7 +176,7 @@ namespace SuperPerkShop
                                 _vaildItemIds.Add(entry.typeID);
                             }
                         }
-
+                        // 添加mod物品
                         var dynamicDicField = typeof(ItemAssetsCollection).GetField("dynamicDic",
                             BindingFlags.NonPublic | BindingFlags.Static);
                         if (dynamicDicField != null)
@@ -186,12 +186,12 @@ namespace SuperPerkShop
                                     Dictionary<int, ItemAssetsCollection.DynamicEntry>;
                             if (dynamicDic != null)
                             {
-                                foreach (var ky in dynamicDic)
+                                foreach (var kv in dynamicDic)
                                 {
-                                    var itemId = ky.Key;
+                                    var itemId = kv.Key;
                                     if (!_vaildItemIds.Contains(itemId))
                                     {
-                                        var dynamicEntry = ky.Value;
+                                        var dynamicEntry = kv.Value;
                                         if (dynamicEntry.prefab.CanBeSold &&
                                             dynamicEntry.prefab.Icon != null &&
                                             dynamicEntry.prefab.Icon.name != "cross")
@@ -253,7 +253,7 @@ namespace SuperPerkShop
 
             return null;
         }
-
+        // 刷新商店
         void RefreshShop(StockShop stockShop)
         {
             // 使用反射调用 DoRefreshStock 方法
@@ -296,7 +296,7 @@ namespace SuperPerkShop
                 Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
             }
         }
-
+        // 修改商店模型
         void UpdateModel(GameObject superSaleMachine)
         {
             try
