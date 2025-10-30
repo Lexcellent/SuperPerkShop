@@ -18,6 +18,9 @@ namespace SuperPerkShop
         public const string SuperShopMerchantID = "Super_Merchant_Normal";
         private const string ShopGameObjectName = "SuperSaleMachine";
 
+        // 已添加到商店中的物品ID
+        private List<int> _vaildItemIds = new List<int>();
+
         protected override void OnAfterSetup()
         {
             if (_harmony != null)
@@ -68,6 +71,50 @@ namespace SuperPerkShop
             }
         }
 
+
+        IEnumerator DelayedSetup()
+        {
+            // 延迟1秒
+            yield return new WaitForSeconds(1f);
+
+            var find = GameObject.Find("Buildings/SaleMachine");
+            if (find != null)
+            {
+                // Debug.Log("找到了 SaleMachine 开始克隆");
+                var superSaleMachine = Instantiate(find.gameObject);
+                superSaleMachine.transform.SetParent(find.transform.parent, true);
+                superSaleMachine.name = ShopGameObjectName;
+                // 调试用 -7.4 0 -83
+                // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
+                // 正式用
+                superSaleMachine.transform.position = new Vector3(-23f, 0f, -65.5f);
+                var superPerkShop = superSaleMachine.transform.Find("PerkWeaponShop");
+                var stockShop = InitShopItems(superPerkShop);
+
+                superSaleMachine.SetActive(true);
+                // Debug.Log("超级售货机已激活");
+                // 修改模型，使用另一个版本，如果有的话
+                UpdateModel(superSaleMachine);
+
+                // 刷新商店物品
+                if (stockShop != null)
+                {
+                    RefreshShop(stockShop);
+                    // Debug.Log("超级售货机商品已刷新");
+                }
+
+                // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
+                // FixCrafting();
+
+                // NotificationText.Push("超级售货机已在训练场已生成");
+            }
+            else
+            {
+                Debug.LogWarning("未找到 Buildings/SaleMachine");
+            }
+        }
+
+        // 初始化商店物品
         StockShop? InitShopItems(Transform? superPerkShop)
         {
             if (superPerkShop != null)
@@ -214,297 +261,259 @@ namespace SuperPerkShop
             return null;
         }
 
-        private List<int> _vaildItemIds = new List<int>();
+        void RefreshShop(StockShop stockShop)
+        {
+            // 使用反射调用 DoRefreshStock 方法
+            var refreshMethod = typeof(StockShop).GetMethod("DoRefreshStock",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            if (refreshMethod != null)
+            {
+                try
+                {
+                    refreshMethod.Invoke(stockShop, null);
+                    // Debug.Log($"✅ 成功调用 DoRefreshStock 方法，商店库存已刷新");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"❌ 调用 DoRefreshStock 方法时发生异常: {ex.Message}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ 未找到 DoRefreshStock 方法");
+            }
 
+            // 使用反射设置 lastTimeRefreshedStock 字段
+            var lastTimeField = typeof(StockShop).GetField("lastTimeRefreshedStock",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            if (lastTimeField != null)
+            {
+                try
+                {
+                    lastTimeField.SetValue(stockShop, DateTime.UtcNow.ToBinary());
+                    // Debug.Log($"✅ 成功更新 lastTimeRefreshedStock 时间戳");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"❌ 设置 lastTimeRefreshedStock 字段时发生异常: {ex.Message}");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
+            }
+        }
+
+        // 处理无效配方
+        void FixCrafting()
+        {
+            try
+            {
+                // 获取 CraftingManager 类型
+                Type craftingManagerType = typeof(CraftingManager);
+
+                // 获取 unlockedFormulaIDs 字段（注意是 GetField 而不是 GetProperty）
+                FieldInfo? unlockedFormulaIDsField = craftingManagerType.GetField("unlockedFormulaIDs",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (unlockedFormulaIDsField != null)
+                {
+                    // 获取字段值
+                    var unlockedFormulas = unlockedFormulaIDsField.GetValue(CraftingManager.Instance) as List<string>;
+
+                    // 如果用户加载慢 配方总合集可能是空的 不做处理
+                    if (unlockedFormulas != null && unlockedFormulas.Count > 0 &&
+                        CraftingFormulaCollection.Instance.Entries.Count > 0)
+                    {
+                        // 使用 unlockedFormulas 列表
+                        Debug.Log($"已解锁配方数量: {unlockedFormulas.Count}");
+                        var newUnlockedFormulas = new List<string>();
+                        var invalid = 0;
+                        foreach (var unlockedFormula in unlockedFormulas)
+                        {
+                            // 已解锁配方是否找到了对应的定义
+                            var found = false;
+
+
+                            foreach (var craftingFormula in CraftingFormulaCollection.Instance.Entries)
+                            {
+                                // Debug.Log($"配方ID:{craftingFormula.id},原材料种类数:{craftingFormula.cost.items.Length}");
+                                if (craftingFormula.IDValid && craftingFormula.id == unlockedFormula)
+                                {
+                                    // 配方的最终产物是否有效
+                                    if (!ItemIdIsVaild(craftingFormula.result.id))
+                                    {
+                                        Debug.Log($"配方:{craftingFormula.id} 最终产物:{craftingFormula.result.id}无效");
+                                        break;
+                                    }
+
+                                    var costIsVaild = true;
+                                    // 配方的原材料是否有效
+                                    foreach (var itemEntry in craftingFormula.cost.items)
+                                    {
+                                        if (!ItemIdIsVaild(itemEntry.id))
+                                        {
+                                            Debug.Log($"配方:{craftingFormula.id} 原材料:{craftingFormula.result.id}无效");
+                                            costIsVaild = false;
+                                            break;
+                                        }
+                                    }
+
+                                    if (costIsVaild)
+                                    {
+                                        found = true;
+                                    }
+
+                                    break;
+                                }
+                            }
+
+                            if (found)
+                            {
+                                // Debug.Log($"配方有效:{unlockedFormula}");
+                                newUnlockedFormulas.Add(unlockedFormula);
+                            }
+                            else
+                            {
+                                Debug.Log($"无效配方:{unlockedFormula}");
+                                invalid += 1;
+                            }
+                        }
+
+                        if (invalid > 0)
+                        {
+                            // 设置新值
+                            unlockedFormulaIDsField.SetValue(CraftingManager.Instance, newUnlockedFormulas);
+                            // 调用 Save 方法
+                            MethodInfo? saveMethod = craftingManagerType.GetMethod("Save",
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                            if (saveMethod != null)
+                            {
+                                try
+                                {
+                                    // 调用 Save 方法
+                                    saveMethod.Invoke(CraftingManager.Instance, null);
+                                    // Debug.Log("✅ 成功调用配方管理器 Save 方法");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.LogError($"❌ 调用调用配方管理器 Save 方法时发生异常: {ex.Message}");
+                                }
+                            }
+                            else
+                            {
+                                Debug.LogWarning("未找到调用配方管理器 Save 方法");
+                            }
+
+                            if (LocalizationManager.CurrentLanguage == SystemLanguage.ChineseSimplified ||
+                                LocalizationManager.CurrentLanguage == SystemLanguage.ChineseTraditional)
+                            {
+                                NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
+                            }
+                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Korean)
+                            {
+                                NotificationText.Push($"{invalid}개의 청사진/레시피가 유효하지 않아 삭제되었습니다");
+                            }
+                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Japanese)
+                            {
+                                NotificationText.Push($"{invalid}個のブループリント/レシピが無効なので削除されました");
+                            }
+                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Spanish)
+                            {
+                                NotificationText.Push($"{invalid} planos/recetas no válidos han sido eliminados");
+                            }
+                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.French)
+                            {
+                                NotificationText.Push($"{invalid} plans/recettes invalides ont été supprimés");
+                            }
+                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.German)
+                            {
+                                NotificationText.Push($"{invalid} ungültige Baupläne/Rezepte wurden gelöscht");
+                            }
+                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Russian)
+                            {
+                                NotificationText.Push($"{invalid} недействительных чертежей/рецептов были удалены");
+                            }
+                            else
+                            {
+                                NotificationText.Push($"{invalid} invalid blueprints/recipes have been deleted");
+                            }
+                        }
+                        else
+                        {
+                            Debug.Log("没有无效配方");
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("未找到 unlockedFormulaIDs 属性");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"❌ 修复配方时发生异常: {ex.Message}");
+            }
+        }
+
+        // 物品ID是否有效
         bool ItemIdIsVaild(int itemId)
         {
             // return _vaildItemIds.Contains(itemId);
             return itemId >= 0;
         }
 
-        // 处理无效配方
-        void FixCrafting()
-        {
-            // 获取 CraftingManager 类型
-            Type craftingManagerType = typeof(CraftingManager);
-
-            // 获取 unlockedFormulaIDs 字段（注意是 GetField 而不是 GetProperty）
-            FieldInfo? unlockedFormulaIDsField = craftingManagerType.GetField("unlockedFormulaIDs",
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-            if (unlockedFormulaIDsField != null)
-            {
-                // 获取字段值
-                var unlockedFormulas = unlockedFormulaIDsField.GetValue(CraftingManager.Instance) as List<string>;
-
-                // 如果用户加载慢 配方总合集可能是空的 不做处理
-                if (unlockedFormulas != null && unlockedFormulas.Count > 0 &&
-                    CraftingFormulaCollection.Instance.Entries.Count > 0)
-                {
-                    // 使用 unlockedFormulas 列表
-                    Debug.Log($"已解锁配方数量: {unlockedFormulas.Count}");
-                    var newUnlockedFormulas = new List<string>();
-                    var invalid = 0;
-                    foreach (var unlockedFormula in unlockedFormulas)
-                    {
-                        // 已解锁配方是否找到了对应的定义
-                        var found = false;
-
-
-                        foreach (var craftingFormula in CraftingFormulaCollection.Instance.Entries)
-                        {
-                            // Debug.Log($"配方ID:{craftingFormula.id},原材料种类数:{craftingFormula.cost.items.Length}");
-                            if (craftingFormula.IDValid && craftingFormula.id == unlockedFormula)
-                            {
-                                // 配方的最终产物是否有效
-                                if (!ItemIdIsVaild(craftingFormula.result.id))
-                                {
-                                    Debug.Log($"配方:{craftingFormula.id} 最终产物:{craftingFormula.result.id}无效");
-                                    break;
-                                }
-
-                                var costIsVaild = true;
-                                // 配方的原材料是否有效
-                                foreach (var itemEntry in craftingFormula.cost.items)
-                                {
-                                    if (!ItemIdIsVaild(itemEntry.id))
-                                    {
-                                        Debug.Log($"配方:{craftingFormula.id} 原材料:{craftingFormula.result.id}无效");
-                                        costIsVaild = false;
-                                        break;
-                                    }
-                                }
-
-                                if (costIsVaild)
-                                {
-                                    found = true;
-                                }
-
-                                break;
-                            }
-                        }
-
-                        if (found)
-                        {
-                            // Debug.Log($"配方有效:{unlockedFormula}");
-                            newUnlockedFormulas.Add(unlockedFormula);
-                        }
-                        else
-                        {
-                            Debug.Log($"无效配方:{unlockedFormula}");
-                            invalid += 1;
-                        }
-                    }
-
-                    if (invalid > 0)
-                    {
-                        // 设置新值
-                        unlockedFormulaIDsField.SetValue(CraftingManager.Instance, newUnlockedFormulas);
-                        // 调用 Save 方法
-                        MethodInfo? saveMethod = craftingManagerType.GetMethod("Save",
-                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-                        if (saveMethod != null)
-                        {
-                            try
-                            {
-                                // 调用 Save 方法
-                                saveMethod.Invoke(CraftingManager.Instance, null);
-                                // Debug.Log("✅ 成功调用配方管理器 Save 方法");
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.LogError($"❌ 调用调用配方管理器 Save 方法时发生异常: {ex.Message}");
-                            }
-                        }
-                        else
-                        {
-                            Debug.LogWarning("未找到调用配方管理器 Save 方法");
-                        }
-
-                        if (LocalizationManager.CurrentLanguage == SystemLanguage.ChineseSimplified ||
-                            LocalizationManager.CurrentLanguage == SystemLanguage.ChineseTraditional)
-                        {
-                            NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
-                        }
-                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Korean)
-                        {
-                            NotificationText.Push($"{invalid}개의 청사진/레시피가 유효하지 않아 삭제되었습니다");
-                        }
-                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Japanese)
-                        {
-                            NotificationText.Push($"{invalid}個のブループリント/レシピが無効なので削除されました");
-                        }
-                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Spanish)
-                        {
-                            NotificationText.Push($"{invalid} planos/recetas no válidos han sido eliminados");
-                        }
-                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.French)
-                        {
-                            NotificationText.Push($"{invalid} plans/recettes invalides ont été supprimés");
-                        }
-                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.German)
-                        {
-                            NotificationText.Push($"{invalid} ungültige Baupläne/Rezepte wurden gelöscht");
-                        }
-                        else if (LocalizationManager.CurrentLanguage == SystemLanguage.Russian)
-                        {
-                            NotificationText.Push($"{invalid} недействительных чертежей/рецептов были удалены");
-                        }
-                        else
-                        {
-                            NotificationText.Push($"{invalid} invalid blueprints/recipes have been deleted");
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log("没有无效配方");
-                    }
-                }
-            }
-            else
-            {
-                Debug.LogWarning("未找到 unlockedFormulaIDs 属性");
-            }
-        }
-
         void UpdateModel(GameObject superSaleMachine)
         {
-            // 查找所有名为 Visual 的子对象
-            var visualChildren = new List<Transform>();
-            foreach (Transform child in superSaleMachine.transform)
+            try
             {
-                if (child.name == "Visual")
+                // 查找所有名为 Visual 的子对象
+                var visualChildren = new List<Transform>();
+                foreach (Transform child in superSaleMachine.transform)
                 {
-                    visualChildren.Add(child);
-                }
-            }
-
-            // 如果有两个 Visual 子对象
-            if (visualChildren.Count == 2)
-            {
-                Transform? activeVisual = null;
-                Transform? inactiveVisual = null;
-
-                // 分别找出已激活和未激活的 Visual
-                foreach (var visual in visualChildren)
-                {
-                    if (visual.gameObject.activeSelf)
+                    if (child.name == "Visual")
                     {
-                        activeVisual = visual;
-                    }
-                    else
-                    {
-                        inactiveVisual = visual;
+                        visualChildren.Add(child);
                     }
                 }
 
-                // 如果找到了已激活和未激活的 Visual，则进行切换
-                if (activeVisual != null && inactiveVisual != null)
+                // 如果有两个 Visual 子对象
+                if (visualChildren.Count == 2)
                 {
-                    activeVisual.gameObject.SetActive(false);
-                    inactiveVisual.gameObject.SetActive(true);
-                    // Debug.Log("✅ 成功切换 Visual 模型");
-                }
-            }
-            // 如果只有一个或没有 Visual 子对象，则不处理
-            else if (visualChildren.Count <= 1)
-            {
-                Debug.Log("Visual 子对象数量不足，无需处理");
-            }
-        }
+                    Transform? activeVisual = null;
+                    Transform? inactiveVisual = null;
 
-        IEnumerator DelayedSetup()
-        {
-            // 延迟1秒
-            yield return new WaitForSeconds(1f);
-
-            var find = GameObject.Find("Buildings/SaleMachine");
-            if (find != null)
-            {
-                // Debug.Log("找到了 SaleMachine 开始克隆");
-                var superSaleMachine = Instantiate(find.gameObject);
-                superSaleMachine.transform.SetParent(find.transform.parent, true);
-                superSaleMachine.name = ShopGameObjectName;
-                // 调试用 -7.4 0 -83
-                // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
-                // 正式用
-                superSaleMachine.transform.position = new Vector3(-23f, 0f, -65.5f);
-                var superPerkShop = superSaleMachine.transform.Find("PerkWeaponShop");
-                var stockShop = InitShopItems(superPerkShop);
-
-                superSaleMachine.SetActive(true);
-                // Debug.Log("超级售货机已激活");
-                try
-                {
-                    // 修改模型，使用另一个版本，如果有的话
-                    UpdateModel(superSaleMachine);
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError($"❌ 修改模型时发生异常: {ex.Message}");
-                }
-
-                if (stockShop != null)
-                {
-                    // 使用反射调用 DoRefreshStock 方法
-                    var refreshMethod = typeof(StockShop).GetMethod("DoRefreshStock",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (refreshMethod != null)
+                    // 分别找出已激活和未激活的 Visual
+                    foreach (var visual in visualChildren)
                     {
-                        try
+                        if (visual.gameObject.activeSelf)
                         {
-                            refreshMethod.Invoke(stockShop, null);
-                            // Debug.Log($"✅ 成功调用 DoRefreshStock 方法，商店库存已刷新");
+                            activeVisual = visual;
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            Debug.LogError($"❌ 调用 DoRefreshStock 方法时发生异常: {ex.Message}");
+                            inactiveVisual = visual;
                         }
                     }
-                    else
-                    {
-                        Debug.LogWarning("⚠️ 未找到 DoRefreshStock 方法");
-                    }
 
-                    // 使用反射设置 lastTimeRefreshedStock 字段
-                    var lastTimeField = typeof(StockShop).GetField("lastTimeRefreshedStock",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (lastTimeField != null)
+                    // 如果找到了已激活和未激活的 Visual，则进行切换
+                    if (activeVisual != null && inactiveVisual != null)
                     {
-                        try
-                        {
-                            lastTimeField.SetValue(stockShop, DateTime.UtcNow.ToBinary());
-                            // Debug.Log($"✅ 成功更新 lastTimeRefreshedStock 时间戳");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.LogError($"❌ 设置 lastTimeRefreshedStock 字段时发生异常: {ex.Message}");
-                        }
+                        activeVisual.gameObject.SetActive(false);
+                        inactiveVisual.gameObject.SetActive(true);
+                        // Debug.Log("✅ 成功切换 Visual 模型");
                     }
-                    else
-                    {
-                        Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
-                    }
-
-                    // Debug.Log("超级售货机商品已刷新");
                 }
-
-                try
+                // 如果只有一个或没有 Visual 子对象，则不处理
+                else if (visualChildren.Count <= 1)
                 {
-                    // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
-                    // FixCrafting();
+                    Debug.Log("Visual 子对象数量不足，无需处理");
                 }
-                catch (Exception ex)
-                {
-                    Debug.LogError($"❌ 修复配方时发生异常: {ex.Message}");
-                }
-
-                // NotificationText.Push("超级售货机已在训练场已生成");
             }
-            else
+            catch (Exception ex)
             {
-                Debug.LogWarning("未找到 Buildings/SaleMachine");
+                Debug.LogError($"❌ 修改模型时发生异常: {ex.Message}");
             }
         }
     }
