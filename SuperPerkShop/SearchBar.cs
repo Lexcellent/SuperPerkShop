@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Reflection;
 using Duckov.Economy.UI;
+using Duckov.Utilities;
 using HarmonyLib;
 using SodaCraft.Localizations;
 using TMPro;
@@ -30,9 +32,12 @@ namespace SuperPerkShop
                 if (merchantStuff.Find("SearchBox") != null)
                 {
                     // Debug.Log("搜索框已存在");
+                    // 清空输入框
+                    var searchBox1 = merchantStuff.Find("SearchBox").gameObject;
+                    var tmpInputField = searchBox1.GetComponent<TMP_InputField>();
+                    tmpInputField.text = string.Empty;
                     // 超级售货机才显示搜索框
-                    merchantStuff.Find("SearchBox").gameObject
-                        .SetActive(__instance.Target.MerchantID == ModBehaviour.SuperShopMerchantID);
+                    searchBox1.SetActive(__instance.Target.MerchantID == ModBehaviour.SuperShopMerchantID);
                     return;
                 }
 
@@ -154,81 +159,44 @@ namespace SuperPerkShop
                 });
                 eventTrigger.triggers.Add(entry);
 
+                // 搜索事件
+                void RefreshItemShow(string keyword)
+                {
+                    // 通过反射获取 EntryPool 属性
+                    var entryPoolProperty =
+                        typeof(StockShopView).GetProperty("EntryPool", BindingFlags.NonPublic | BindingFlags.Instance);
+                    // 获取 EntryPool 值
+                    var entryPoolValue = entryPoolProperty?.GetValue(__instance);
+                    // 现在 entryPoolValue 包含了 PrefabPool<StockShopItemEntry> 实例
+                    var prefabPool = entryPoolValue as PrefabPool<StockShopItemEntry>;
+                    if (prefabPool == null)
+                        return;
+                    foreach (var prefabPoolActiveEntry in prefabPool.ActiveEntries)
+                    {
+                        if (keyword == string.Empty || keyword == "")
+                        {
+                            prefabPoolActiveEntry.gameObject.SetActive(true);
+                            continue;
+                        }
+
+                        var item = prefabPoolActiveEntry.GetItem();
+                        if (item.DisplayName.Contains(keyword) || item.TypeID.ToString() == keyword)
+                        {
+                            prefabPoolActiveEntry.gameObject.SetActive(true);
+                        }
+                        else
+                        {
+                            prefabPoolActiveEntry.gameObject.SetActive(false);
+                        }
+                    }
+                }
+
                 // 添加搜索事件监听
                 inputField.onDeselect.AddListener((inputText) =>
                 {
                     inputText = inputText.Trim();
                     // Debug.Log($"[SuperPerkShop] 检测到搜索值：{inputText}");
-                    var entityList = merchantStuff.Find("Scroll View/Viewport/Content");
-                    if (entityList != null)
-                    {
-                        // 获取所有子对象
-                        var allChildren = entityList.GetComponentsInChildren<Transform>(true);
-                        int foundCount = 0; // 记录找到的对象数量
-
-                        foreach (var child in allChildren)
-                        {
-                            if (child.name == "ItemEntry(Clone)")
-                            {
-                                foundCount++;
-
-                                if (inputText == "")
-                                {
-                                    child.gameObject.SetActive(true);
-                                    continue;
-                                }
-
-                                var nameContainer =
-                                    child.Find("ItemDisplayContainer/ItemDisplay/Layout/NameContainer/Text (TMP)");
-
-                                // 添加日志：记录是否找到nameContainer
-                                if (nameContainer == null)
-                                {
-                                    // Debug.Log(
-                                    //     $"[SuperPerkShop] 未找到 NameContainer 路径: ItemEntry({child.GetInstanceID()})");
-                                    child.gameObject.SetActive(false);
-                                    continue;
-                                }
-
-                                var textGUIComponent = nameContainer.GetComponent<TextMeshProUGUI>();
-                                var text = textGUIComponent?.text;
-
-                                // 添加日志：记录文本组件和文本内容
-                                if (textGUIComponent == null)
-                                {
-                                    // Debug.Log(
-                                    //     $"[SuperPerkShop] 未找到 TextMeshProUGUI 组件: ItemEntry({child.GetInstanceID()})");
-                                    child.gameObject.SetActive(false);
-                                    continue;
-                                }
-
-                                if (text != null)
-                                {
-                                    bool isMatch = text.Contains(inputText);
-                                    child.gameObject.SetActive(isMatch);
-                                    // Debug.Log(
-                                    //     $"[SuperPerkShop] 匹配结果 - 文本: '{text}', 搜索: '{inputText}', 匹配: {isMatch}");
-                                }
-                                else
-                                {
-                                    Debug.Log($"[SuperPerkShop] 文本内容为空: ItemEntry({child.GetInstanceID()})");
-                                    child.gameObject.SetActive(false);
-                                }
-                            }
-                        }
-
-                        // 添加日志：记录总共处理的对象数量
-                        // Debug.Log($"[SuperPerkShop] 总共找到 {foundCount} 个 ItemEntry(Clone) 对象");
-
-                        if (foundCount == 0)
-                        {
-                            Debug.Log($"[SuperPerkShop] 未找到任何 ItemEntry(Clone) 对象");
-                        }
-                    }
-                    else
-                    {
-                        Debug.Log($"[SuperPerkShop] 未找到 entityList (Scroll View/Viewport/Content)");
-                    }
+                    RefreshItemShow(inputText);
                 });
                 inputField.text = string.Empty;
                 // 超级售货机才显示搜索框
