@@ -15,7 +15,7 @@ namespace SuperPerkShop
     public class ModBehaviour : Duckov.Modding.ModBehaviour
     {
         private Harmony? _harmony = null;
-        public const string MerchantID = "Super_Merchant_Normal";
+        public const string SuperShopMerchantID = "Super_Merchant_Normal";
         private const string ShopGameObjectName = "SuperSaleMachine";
 
         protected override void OnAfterSetup()
@@ -30,6 +30,9 @@ namespace SuperPerkShop
 
             SceneManager.sceneLoaded -= OnAfterSceneInit;
             SceneManager.sceneLoaded += OnAfterSceneInit;
+
+            StockShop.OnAfterItemSold -= ShopAutoSetItemCount;
+            StockShop.OnAfterItemSold += ShopAutoSetItemCount;
         }
 
         protected override void OnBeforeDeactivate()
@@ -40,6 +43,18 @@ namespace SuperPerkShop
             }
 
             SceneManager.sceneLoaded -= OnAfterSceneInit;
+            StockShop.OnAfterItemSold -= ShopAutoSetItemCount;
+        }
+
+        void ShopAutoSetItemCount(StockShop shop)
+        {
+            // 超级售货机 才会自动补货
+            if (shop.MerchantID != SuperShopMerchantID)
+                return;
+            foreach (var shopEntry in shop.entries)
+            {
+                shopEntry.CurrentStock = shopEntry.MaxStock;
+            }
         }
 
         void OnAfterSceneInit(Scene scene, LoadSceneMode mode)
@@ -68,7 +83,7 @@ namespace SuperPerkShop
                         BindingFlags.NonPublic | BindingFlags.Instance);
                     if (merchantIDField != null)
                     {
-                        merchantIDField.SetValue(stockShop, MerchantID);
+                        merchantIDField.SetValue(stockShop, SuperShopMerchantID);
                     }
                     else
                     {
@@ -81,7 +96,7 @@ namespace SuperPerkShop
                     var merchantProfiles = StockShopDatabase.Instance.merchantProfiles;
                     foreach (var profile in merchantProfiles)
                     {
-                        if (profile.merchantID == MerchantID)
+                        if (profile.merchantID == SuperShopMerchantID)
                         {
                             isAdded = true;
                             break;
@@ -95,7 +110,7 @@ namespace SuperPerkShop
                         // 全物品列表
                         var allItemEntries = ItemAssetsCollection.Instance.entries;
                         var merchantProfile = new StockShopDatabase.MerchantProfile();
-                        merchantProfile.merchantID = MerchantID;
+                        merchantProfile.merchantID = SuperShopMerchantID;
                         foreach (var itemEntry in allItemEntries)
                         {
                             // if (!itemEntry.prefab.CanBeSold &&
@@ -377,7 +392,7 @@ namespace SuperPerkShop
                 var stockShop = InitShopItems(superPerkShop);
 
                 superSaleMachine.SetActive(true);
-                Debug.Log("超级售货机已激活");
+                // Debug.Log("超级售货机已激活");
                 try
                 {
                     // 修改模型，使用另一个版本，如果有的话

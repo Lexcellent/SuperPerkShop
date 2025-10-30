@@ -32,7 +32,7 @@ namespace SuperPerkShop
                     // Debug.Log("搜索框已存在");
                     // 超级售货机才显示搜索框
                     merchantStuff.Find("SearchBox").gameObject
-                        .SetActive(__instance.Target.MerchantID == ModBehaviour.MerchantID);
+                        .SetActive(__instance.Target.MerchantID == ModBehaviour.SuperShopMerchantID);
                     return;
                 }
 
@@ -231,7 +231,7 @@ namespace SuperPerkShop
                     }
                 });
                 // 超级售货机才显示搜索框
-                searchBox.SetActive(__instance.Target.MerchantID == ModBehaviour.MerchantID);
+                searchBox.SetActive(__instance.Target.MerchantID == ModBehaviour.SuperShopMerchantID);
                 // inputField.onSelect.AddListener((value) => { Debug.Log("[SuperPerkShop] 输入框获得焦点"); });
                 // inputField.onDeselect.AddListener((value) => { Debug.Log("[SuperPerkShop] 输入框失去焦点"); });
             }
