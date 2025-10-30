@@ -121,8 +121,8 @@ namespace SuperPerkShop
                             // }
                             // 过滤无效物品
                             if (itemEntry.prefab.CanBeSold &&
-                                !itemEntry.prefab.name.ToLower().EndsWith("template") &&
-                                itemEntry.prefab.Icon != null && itemEntry.prefab.Icon.name != "cross")
+                                itemEntry.prefab.Icon != null &&
+                                itemEntry.prefab.Icon.name != "cross")
                             {
                                 var entry = new StockShopDatabase.ItemEntry();
 
@@ -135,6 +135,48 @@ namespace SuperPerkShop
                                 merchantProfile.entries.Add(entry);
                                 _vaildItemIds.Add(entry.typeID);
                             }
+                        }
+
+                        var dynamicDicField = typeof(ItemAssetsCollection).GetField("dynamicDic",
+                            BindingFlags.NonPublic | BindingFlags.Static);
+                        if (dynamicDicField != null)
+                        {
+                            var dynamicDic =
+                                dynamicDicField.GetValue(ItemAssetsCollection.Instance) as
+                                    Dictionary<int, ItemAssetsCollection.DynamicEntry>;
+                            if (dynamicDic != null)
+                            {
+                                foreach (var ky in dynamicDic)
+                                {
+                                    var itemId = ky.Key;
+                                    if (!_vaildItemIds.Contains(itemId))
+                                    {
+                                        var dynamicEntry = ky.Value;
+                                        if (dynamicEntry.prefab.CanBeSold &&
+                                            dynamicEntry.prefab.Icon != null &&
+                                            dynamicEntry.prefab.Icon.name != "cross")
+                                        {
+                                            var entry = new StockShopDatabase.ItemEntry();
+                                            entry.typeID = dynamicEntry.typeID;
+                                            entry.maxStock = dynamicEntry.prefab.MaxStackCount;
+                                            entry.forceUnlock = true;
+                                            entry.priceFactor = 1f;
+                                            entry.possibility = -1f;
+                                            entry.lockInDemo = false;
+                                            merchantProfile.entries.Add(entry);
+                                            _vaildItemIds.Add(entry.typeID);
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Debug.LogWarning("dynamicDic 为空");
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning("dynamicDicField 为空");
                         }
 
                         merchantProfiles.Add(merchantProfile);
