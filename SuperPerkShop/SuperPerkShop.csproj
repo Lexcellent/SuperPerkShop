@@ -14,8 +14,8 @@
         <Reference Include="$(DuckovPath)\Duckov_Data\Managed\LeTai.TranslucentImage.dll"/>
         <Reference Include="$(DuckovPath)\Duckov_Data\Managed\SodaLocalization.dll"/>
     </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="Lib.Harmony" Version="2.4.1" />
-    </ItemGroup>
+<!--    <ItemGroup>-->
+<!--        <PackageReference Include="Lib.Harmony" Version="2.4.1" />-->
+<!--    </ItemGroup>-->
 
 </Project>
