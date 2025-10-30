@@ -184,8 +184,8 @@ namespace SuperPerkShop
                                 // 添加日志：记录是否找到nameContainer
                                 if (nameContainer == null)
                                 {
-                                    Debug.Log(
-                                        $"[SuperPerkShop] 未找到 NameContainer 路径: ItemEntry({child.GetInstanceID()})");
+                                    // Debug.Log(
+                                    //     $"[SuperPerkShop] 未找到 NameContainer 路径: ItemEntry({child.GetInstanceID()})");
                                     child.gameObject.SetActive(false);
                                     continue;
                                 }
@@ -196,8 +196,8 @@ namespace SuperPerkShop
                                 // 添加日志：记录文本组件和文本内容
                                 if (textGUIComponent == null)
                                 {
-                                    Debug.Log(
-                                        $"[SuperPerkShop] 未找到 TextMeshProUGUI 组件: ItemEntry({child.GetInstanceID()})");
+                                    // Debug.Log(
+                                    //     $"[SuperPerkShop] 未找到 TextMeshProUGUI 组件: ItemEntry({child.GetInstanceID()})");
                                     child.gameObject.SetActive(false);
                                     continue;
                                 }
@@ -230,6 +230,7 @@ namespace SuperPerkShop
                         Debug.Log($"[SuperPerkShop] 未找到 entityList (Scroll View/Viewport/Content)");
                     }
                 });
+                inputField.text = string.Empty;
                 // 超级售货机才显示搜索框
                 searchBox.SetActive(__instance.Target.MerchantID == ModBehaviour.SuperShopMerchantID);
                 // inputField.onSelect.AddListener((value) => { Debug.Log("[SuperPerkShop] 输入框获得焦点"); });
