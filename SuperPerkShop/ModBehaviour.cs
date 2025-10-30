@@ -3,10 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using Duckov.Economy;
-using Duckov.UI;
 using HarmonyLib;
 using ItemStatsSystem;
-using SodaCraft.Localizations;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -102,11 +100,6 @@ namespace SuperPerkShop
                     RefreshShop(stockShop);
                     // Debug.Log("超级售货机商品已刷新");
                 }
-
-                // 如果已解锁的配方 不在配方列表里 则删除处理 防止工作台无法使用
-                // FixCrafting();
-
-                // NotificationText.Push("超级售货机已在训练场已生成");
             }
             else
             {
@@ -302,166 +295,6 @@ namespace SuperPerkShop
             {
                 Debug.LogWarning("⚠️ 未找到 lastTimeRefreshedStock 字段");
             }
-        }
-
-        // 处理无效配方
-        void FixCrafting()
-        {
-            try
-            {
-                // 获取 CraftingManager 类型
-                Type craftingManagerType = typeof(CraftingManager);
-
-                // 获取 unlockedFormulaIDs 字段（注意是 GetField 而不是 GetProperty）
-                FieldInfo? unlockedFormulaIDsField = craftingManagerType.GetField("unlockedFormulaIDs",
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-                if (unlockedFormulaIDsField != null)
-                {
-                    // 获取字段值
-                    var unlockedFormulas = unlockedFormulaIDsField.GetValue(CraftingManager.Instance) as List<string>;
-
-                    // 如果用户加载慢 配方总合集可能是空的 不做处理
-                    if (unlockedFormulas != null && unlockedFormulas.Count > 0 &&
-                        CraftingFormulaCollection.Instance.Entries.Count > 0)
-                    {
-                        // 使用 unlockedFormulas 列表
-                        Debug.Log($"已解锁配方数量: {unlockedFormulas.Count}");
-                        var newUnlockedFormulas = new List<string>();
-                        var invalid = 0;
-                        foreach (var unlockedFormula in unlockedFormulas)
-                        {
-                            // 已解锁配方是否找到了对应的定义
-                            var found = false;
-
-
-                            foreach (var craftingFormula in CraftingFormulaCollection.Instance.Entries)
-                            {
-                                // Debug.Log($"配方ID:{craftingFormula.id},原材料种类数:{craftingFormula.cost.items.Length}");
-                                if (craftingFormula.IDValid && craftingFormula.id == unlockedFormula)
-                                {
-                                    // 配方的最终产物是否有效
-                                    if (!ItemIdIsVaild(craftingFormula.result.id))
-                                    {
-                                        Debug.Log($"配方:{craftingFormula.id} 最终产物:{craftingFormula.result.id}无效");
-                                        break;
-                                    }
-
-                                    var costIsVaild = true;
-                                    // 配方的原材料是否有效
-                                    foreach (var itemEntry in craftingFormula.cost.items)
-                                    {
-                                        if (!ItemIdIsVaild(itemEntry.id))
-                                        {
-                                            Debug.Log($"配方:{craftingFormula.id} 原材料:{craftingFormula.result.id}无效");
-                                            costIsVaild = false;
-                                            break;
-                                        }
-                                    }
-
-                                    if (costIsVaild)
-                                    {
-                                        found = true;
-                                    }
-
-                                    break;
-                                }
-                            }
-
-                            if (found)
-                            {
-                                // Debug.Log($"配方有效:{unlockedFormula}");
-                                newUnlockedFormulas.Add(unlockedFormula);
-                            }
-                            else
-                            {
-                                Debug.Log($"无效配方:{unlockedFormula}");
-                                invalid += 1;
-                            }
-                        }
-
-                        if (invalid > 0)
-                        {
-                            // 设置新值
-                            unlockedFormulaIDsField.SetValue(CraftingManager.Instance, newUnlockedFormulas);
-                            // 调用 Save 方法
-                            MethodInfo? saveMethod = craftingManagerType.GetMethod("Save",
-                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-                            if (saveMethod != null)
-                            {
-                                try
-                                {
-                                    // 调用 Save 方法
-                                    saveMethod.Invoke(CraftingManager.Instance, null);
-                                    // Debug.Log("✅ 成功调用配方管理器 Save 方法");
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.LogError($"❌ 调用调用配方管理器 Save 方法时发生异常: {ex.Message}");
-                                }
-                            }
-                            else
-                            {
-                                Debug.LogWarning("未找到调用配方管理器 Save 方法");
-                            }
-
-                            if (LocalizationManager.CurrentLanguage == SystemLanguage.ChineseSimplified ||
-                                LocalizationManager.CurrentLanguage == SystemLanguage.ChineseTraditional)
-                            {
-                                NotificationText.Push($"有{invalid}个蓝图/配方无效，已删除");
-                            }
-                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Korean)
-                            {
-                                NotificationText.Push($"{invalid}개의 청사진/레시피가 유효하지 않아 삭제되었습니다");
-                            }
-                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Japanese)
-                            {
-                                NotificationText.Push($"{invalid}個のブループリント/レシピが無効なので削除されました");
-                            }
-                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Spanish)
-                            {
-                                NotificationText.Push($"{invalid} planos/recetas no válidos han sido eliminados");
-                            }
-                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.French)
-                            {
-                                NotificationText.Push($"{invalid} plans/recettes invalides ont été supprimés");
-                            }
-                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.German)
-                            {
-                                NotificationText.Push($"{invalid} ungültige Baupläne/Rezepte wurden gelöscht");
-                            }
-                            else if (LocalizationManager.CurrentLanguage == SystemLanguage.Russian)
-                            {
-                                NotificationText.Push($"{invalid} недействительных чертежей/рецептов были удалены");
-                            }
-                            else
-                            {
-                                NotificationText.Push($"{invalid} invalid blueprints/recipes have been deleted");
-                            }
-                        }
-                        else
-                        {
-                            Debug.Log("没有无效配方");
-                        }
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning("未找到 unlockedFormulaIDs 属性");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"❌ 修复配方时发生异常: {ex.Message}");
-            }
-        }
-
-        // 物品ID是否有效
-        bool ItemIdIsVaild(int itemId)
-        {
-            // return _vaildItemIds.Contains(itemId);
-            return itemId >= 0;
         }
 
         void UpdateModel(GameObject superSaleMachine)
