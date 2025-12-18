@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
         <Nullable>enable</Nullable>
-        <DuckovPath>E:\SteamLibrary\steamapps\common\Escape from Duckov</DuckovPath>
+        <DuckovPath>D:\app\Steam\steamapps\common\Escape from Duckov</DuckovPath>
     </PropertyGroup>
 
     <ItemGroup>
