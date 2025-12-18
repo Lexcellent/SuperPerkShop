@@ -20,6 +20,7 @@ namespace SuperPerkShop
     {
         public const string SuperShopMerchantID = "Super_Merchant_Normal";
         private const string ShopGameObjectName = "SuperSaleMachine";
+        private GameObject? superSaleMachine = null;
 
         // 已添加到商店中的物品ID
         private List<int> _vaildItemIds = new List<int>();
@@ -265,35 +266,42 @@ namespace SuperPerkShop
 
         IEnumerator DelayedSetup()
         {
-            // 延迟1秒
-            yield return new WaitForSeconds(1f);
-
-            var find = GameObject.Find("Buildings/SaleMachine");
-            if (find != null)
+            if (superSaleMachine == null)
             {
-                // Debug.Log("找到了 SaleMachine 开始克隆");
-                var superSaleMachine = Instantiate(find.gameObject);
-                superSaleMachine.transform.SetParent(find.transform.parent, true);
-                superSaleMachine.name = ShopGameObjectName;
-                // 调试用 -7.4 0 -83
-                // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
-                // 正式用
-                superSaleMachine.transform.position = new Vector3(-23f, 0f, -65.5f);
-                var superPerkShop = superSaleMachine.transform.Find("PerkWeaponShop");
-                var stockShop = InitShopItems(superPerkShop);
+                // 延迟2秒
+                yield return new WaitForSeconds(2f);
 
-                superSaleMachine.SetActive(true);
-                // Debug.Log("超级售货机已激活");
-                // 修改模型，使用另一个版本，如果有的话
-                UpdateModel(superSaleMachine);
+                var find = GameObject.Find("Buildings/SaleMachine");
+                if (find != null)
+                {
+                    // Debug.Log("找到了 SaleMachine 开始克隆");
+                    superSaleMachine = Instantiate(find.gameObject);
+                    superSaleMachine.transform.SetParent(find.transform.parent, true);
+                    superSaleMachine.name = ShopGameObjectName;
+                    // 调试用 -7.4 0 -83
+                    // superSaleMachine.transform.position = new Vector3(-7.4f, 0f, -83f);
+                    // 正式用
+                    superSaleMachine.transform.position = new Vector3(-28.5f, 0f, -65.5f);
+                    var superPerkShop = superSaleMachine.transform.Find("PerkWeaponShop");
+                    var stockShop = InitShopItems(superPerkShop);
 
-                // 刷新商店物品
-                RefreshShop(stockShop);
+                    superSaleMachine.SetActive(true);
+                    // Debug.Log("超级售货机已激活");
+                    // 修改模型，使用另一个版本，如果有的话
+                    UpdateModel(superSaleMachine);
+
+                    // 刷新商店物品
+                    RefreshShop(stockShop);
+                }
+                else
+                {
+                    Debug.LogWarning("未找到 Buildings/SaleMachine");
+                }
             }
-            else
-            {
-                Debug.LogWarning("未找到 Buildings/SaleMachine");
-            }
+            // else
+            // {
+            //     superSaleMachine.SetActive(true);
+            // }
         }
 
         // 初始化商店物品
