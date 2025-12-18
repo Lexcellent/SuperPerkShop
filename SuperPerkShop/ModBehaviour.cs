@@ -249,7 +249,7 @@ namespace SuperPerkShop
 
         void OnAfterSceneInit(Scene scene, LoadSceneMode mode)
         {
-            Debug.Log($"加载场景：{scene.name}，模式：{mode.ToString()}");
+            // Debug.Log($"加载场景：{scene.name}，模式：{mode.ToString()}");
 
             if (scene.name == "Base_SceneV2")
             {
